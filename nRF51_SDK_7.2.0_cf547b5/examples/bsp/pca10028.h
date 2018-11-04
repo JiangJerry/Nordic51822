@@ -42,7 +42,7 @@
 #define BUTTONS_NUMBER 4
 
 #define BUTTON_START   17
-#define BUTTON_1       17
+#define BUTTON_1       5
 #define BUTTON_2       18
 #define BUTTON_3       19
 #define BUTTON_4       20

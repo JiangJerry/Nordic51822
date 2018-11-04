@@ -15,6 +15,7 @@
 
   <project>
     <PathAndName>.\pca10031\blank\arm\blinky_blank_pca10031.uvprojx</PathAndName>
+    <NodeIsExpanded>1</NodeIsExpanded>
   </project>
 
   <project>

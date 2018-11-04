@@ -50,24 +50,25 @@ int main(void)
     // Configure LED-pins as outputs.
     LEDS_CONFIGURE(LEDS_MASK);
 	nrf_gpio_cfg_output(LED_0);
+	nrf_gpio_cfg_input(BUTTON_1,NRF_GPIO_PIN_PULLUP);
     // Toggle LEDs.
+//		nrf_delay_ms(500);
     while (true)
     {
-//        for (int i = 0; i < LEDS_NUMBER; i++)
-//        {
-//            LEDS_INVERT(1 << leds_list[i]);
-//            nrf_delay_ms(500);
-//        }
 		led_to_enable++;
 		led_to_enable = led_to_enable%12;
-	error = neopixel_set_color_and_show(&m_strip, led_to_enable, red, green, blue);
-	if (error) {
+		error = neopixel_set_color_and_show(&m_strip, led_to_enable, red, green, blue);
+		if (error) {
 		//led_to_enable was not within number leds_per_strip
-	}
-		nrf_gpio_pin_set(LED_0);
-		nrf_delay_ms(500);
-		nrf_gpio_pin_clear(LED_0);
-		nrf_delay_ms(500);
+		}
+		if(nrf_gpio_pin_read(BUTTON_1))
+		{
+			nrf_gpio_pin_set(LED_0);
+		}
+		else
+		{
+			nrf_gpio_pin_clear(LED_0);
+		}
     }
 }
 
