@@ -20,6 +20,9 @@
 #include "app_util.h"
 #include "app_util_platform.h"
 
+#include "nrf_gpio.h"
+#include "PCA10001.h"
+
 #define RTC1_IRQ_PRI            APP_IRQ_PRIORITY_LOW                        /**< Priority of the RTC1 interrupt (used for checking for timeouts and executing timeout handlers). */
 #define SWI0_IRQ_PRI            APP_IRQ_PRIORITY_LOW                        /**< Priority of the SWI0 interrupt (used for updating the timer list). */
 

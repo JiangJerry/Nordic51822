@@ -37,13 +37,15 @@
 #include "simple_uart.h"
 #include "app_util_platform.h"
 #include "bsp.h"
+#include "neopixel.h"
+
 
 #define IS_SRVC_CHANGED_CHARACT_PRESENT 0                                           /**< Include or not the service_changed characteristic. if not enabled, the server's database cannot be changed for the lifetime of the device*/
 
 
 #define WAKEUP_BUTTON_ID                0                                           /**< Button used to wake up the application. */
 
-#define DEVICE_NAME                     "Nordic_UART"                               /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                     "Nordic_UART181112"                               /**< Name of device. Will be included in the advertising data. */
 
 #define APP_ADV_INTERVAL                64                                          /**< The advertising interval (in units of 0.625 ms. This value corresponds to 40 ms). */
 #define APP_ADV_TIMEOUT_IN_SECONDS      180                                         /**< The advertising timeout (in units of seconds). */
@@ -108,9 +110,10 @@ static void gap_params_init(void)
     uint32_t                err_code;
     ble_gap_conn_params_t   gap_conn_params;
     ble_gap_conn_sec_mode_t sec_mode;
-
+    /*设置设备名的写权限为普通模式，则手机扫描到设备连接上后可以在第一个服务Geneic Access Service（有的只显示UUID为1800）
+    中改写Device name.（有的app可能本身未实现改写功能） */   
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&sec_mode);
-    
+    //设置设备名，该设备名就是在手机app扫描蓝牙设备时显示的名字。
     err_code = sd_ble_gap_device_name_set(&sec_mode,
                                           (const uint8_t *) DEVICE_NAME,
                                           strlen(DEVICE_NAME));
@@ -122,7 +125,9 @@ static void gap_params_init(void)
     gap_conn_params.max_conn_interval = MAX_CONN_INTERVAL;
     gap_conn_params.slave_latency     = SLAVE_LATENCY;
     gap_conn_params.conn_sup_timeout  = CONN_SUP_TIMEOUT;
+    //设置外围设备连接首选参数。同device name一样，手机连上某个蓝牙设备后可以从Generic Access Service中看到设置的这些参数。这个参数主要是让中央设备在首次连接外设时可以读取他们以及时调整连接参数。或者当中央设备以后重连该外设，并且之前保留了这些参数那么就免去了连接后可能需要的修改连接参数的麻烦。
 
+    //当然，外围设备也可以之后通过sd_ble_gap_ppcp_get来获取之前设置的参数然后通过连接参数跟新请求函数向中央设备请求更改连接参数。
     err_code = sd_ble_gap_ppcp_set(&gap_conn_params);
     APP_ERROR_CHECK(err_code);
 }
@@ -163,13 +168,29 @@ static void advertising_init(void)
  *           it to the UART module.
  */
 /**@snippet [Handling the data received over BLE] */
+
+uint8_t red = 0x20;
+uint8_t green = 0x10;
+uint8_t blue = 00;
+
 void nus_data_handler(ble_nus_t * p_nus, uint8_t * p_data, uint16_t length)
 {
     for (int i = 0; i < length; i++)
     {
         simple_uart_put(p_data[i]);
     }
-    simple_uart_put('\n');
+    red = p_data[0] - 0x30;
+    red = red << 4;
+    red += p_data[1] - 0x30;
+    
+    green = p_data[2] - 0x30;
+    green = green << 4;
+    green += p_data[3] - 0x30;
+    
+    blue = p_data[4] - 0x30;
+    blue = blue << 4;
+    blue += p_data[5] - 0x30;
+//    simple_uart_put('\n');
 }
 /**@snippet [Handling the data received over BLE] */
 
@@ -184,7 +205,9 @@ static void services_init(void)
     memset(&nus_init, 0, sizeof(nus_init));
 
     nus_init.data_handler = nus_data_handler;
-    
+    //注册数据处理函数，这里处理的数据是收到手机发来的数据
+    // nus_data_handler就是将板子收到的数据通过串口打印到电脑上
+    //实现了手机->开发板->电脑方向的数据流传输。    
     err_code = ble_nus_init(&m_nus, &nus_init);
     APP_ERROR_CHECK(err_code);
 }
@@ -390,7 +413,7 @@ static void ble_stack_init(void)
     
     // Initialize SoftDevice.
     SOFTDEVICE_HANDLER_INIT(NRF_CLOCK_LFCLKSRC_XTAL_20_PPM, false);
-
+    //设置LFCLK(32.768K)的时钟源(协议栈需要使用)，这里设置为外部晶振。False为不使用调度。
     // Enable BLE stack 
     ble_enable_params_t ble_enable_params;
     memset(&ble_enable_params, 0, sizeof(ble_enable_params));
@@ -399,6 +422,13 @@ static void ble_stack_init(void)
     APP_ERROR_CHECK(err_code);
     
     // Subscribe for BLE events.
+    /*注册事件派发程序，基础1-协议栈概述说明过，
+    当BLE收到广播，链接请求，对端设备数据等后底层处理完会上抛给上册app一个事件，
+    这个事件的上抛过程是协议栈触发SWI中断，在中断内部将事件放入队列，然后调用app中的SWI中断。
+    App中的SWI中断会get队列中的事件，并最终会调用注册的ble_evt_dispatch函数，
+    这个函数再将事件发给各个服务以及模块的事件处理函数来处理各个服务及模块自己感兴趣的事件。
+    相关原理基础1-协议栈概述视频教程中有说明。
+    */
     err_code = softdevice_ble_evt_handler_set(ble_evt_dispatch);
     APP_ERROR_CHECK(err_code);
 }
@@ -447,7 +477,7 @@ void UART0_IRQHandler(void)
 
     if ((data_array[index - 1] == '\n') || (index >= (BLE_NUS_MAX_DATA_LEN - 1)))
     {
-        err_code = ble_nus_send_string(&m_nus, data_array, index + 1);
+        err_code = ble_nus_send_string(&m_nus, data_array, index + 1);  //数据发送
         if (err_code != NRF_ERROR_INVALID_STATE)
         {
             APP_ERROR_CHECK(err_code);
@@ -458,37 +488,80 @@ void UART0_IRQHandler(void)
 
     /**@snippet [Handling the data received over UART] */
 }
+neopixel_strip_t m_strip;
+uint8_t dig_pin_num = 7;
+uint8_t leds_per_strip = 12;
+uint8_t error;
+uint8_t led_to_enable = 10;
+
+void LEDLintInit(void)
+{
+	neopixel_init(&m_strip, dig_pin_num, leds_per_strip);
+	neopixel_clear(&m_strip);  
+}
 
 
-/**@brief  Application main function.
- */
+app_timer_id_t my_timer;
+//定时器回调函数
+static void my_timer_handler(void * p_context)
+{
+    static uint8_t i = 0;
+    uint8_t Data[] = "2365";
+    nrf_gpio_pin_toggle(6);
+    ble_nus_send_string(&m_nus, Data, sizeof(Data));  //数据发送    
+    
+    if(i<12)
+        error = neopixel_set_color_and_show(&m_strip, i++, red, green, blue);
+    else
+    {
+        error = neopixel_set_color_and_show(&m_strip, (i++)%12, 0, 0, 0);
+        if(i > 23)
+            i = 0;
+    }
+}
+
+
 int main(void)
 {
     uint8_t start_string[] = START_STRING;
     uint32_t err_code;
     // Initialize
+  
     APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_MAX_TIMERS, APP_TIMER_OP_QUEUE_SIZE, false);
     APP_GPIOTE_INIT(APP_GPIOTE_MAX_USERS);
+    //协议栈初试化，设置时钟，demo里面设置为外部时钟。并且注册事件派发函数    
     ble_stack_init();
-    uart_init();
+    uart_init();        //串口初始化
 
-    err_code = bsp_init(BSP_INIT_LED | BSP_INIT_BUTTONS, APP_TIMER_TICKS(100, APP_TIMER_PRESCALER), NULL);
-    APP_ERROR_CHECK(err_code);
-    err_code = bsp_buttons_enable(1 << WAKEUP_BUTTON_ID);
-    APP_ERROR_CHECK(err_code);
-    gap_params_init();
+    
+    nrf_gpio_cfg_output(LED_0);
+    nrf_gpio_cfg_input(BUTTON_1,NRF_GPIO_PIN_PULLUP);
+    LEDLintInit();
+    
+    app_timer_create(&my_timer, APP_TIMER_MODE_REPEATED, my_timer_handler);
+    app_timer_start(my_timer, APP_TIMER_TICKS(500, APP_TIMER_PRESCALER), NULL);
+//    while(1);
+//    err_code = bsp_init(BSP_INIT_LED | BSP_INIT_BUTTONS, APP_TIMER_TICKS(100, APP_TIMER_PRESCALER), NULL);
+//    APP_ERROR_CHECK(err_code);
+//    err_code = bsp_buttons_enable(1 << WAKEUP_BUTTON_ID);
+//    APP_ERROR_CHECK(err_code);
+    //GAP一些参数的设置，设置设备名，设置PPCP(外围设备首选链接参数)。(手机连上某个蓝牙设备后可以从Generic Access Service中看到设置的这些参数)    
+    gap_params_init(); 
+    //服务初始化。添加uart的串口服务。主要提供两个特征值来供手机和板子以及电脑的通信
     services_init();
+    //设置广播数据以及扫描响应数据
     advertising_init();
+    //链接参数设置。主要设置什么时候发起更新链接参数请求以及间隔和最大尝试次数    
     conn_params_init();
+    //安全参数初始化
     sec_params_init();
-    
-    simple_uart_putstring(start_string);
-    
-    advertising_start();
-    
+//    simple_uart_putstring(start_string); 
+    //设置广播类型，白名单，间隔，超时等特性。并开始广播。
+    advertising_start();    //开始广播
     // Enter main loop
     for (;;)
     {
+        //电源管理，调用arm0的指令__WFE();进入睡眠
         power_manage();
     }
 }

@@ -59,12 +59,13 @@ bool simple_uart_get_with_timeout(int32_t timeout_ms, uint8_t * rx_data)
 
 void simple_uart_put(uint8_t cr)
 {
+     NRF_UART0->EVENTS_TXDRDY = 0;
     NRF_UART0->TXD = (uint8_t)cr;
 
-//    while (NRF_UART0->EVENTS_TXDRDY != 1)
-//    {
-//        // Wait for TXD data to be sent.
-//    }
+    while (NRF_UART0->EVENTS_TXDRDY != 1)
+    {
+        // Wait for TXD data to be sent.
+    }
 
     NRF_UART0->EVENTS_TXDRDY = 0;
 }

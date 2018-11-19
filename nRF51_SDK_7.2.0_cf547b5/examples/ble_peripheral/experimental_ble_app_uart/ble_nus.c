@@ -237,16 +237,13 @@ uint32_t ble_nus_init(ble_nus_t * p_nus, const ble_nus_init_t * p_nus_init)
     p_nus->data_handler             = p_nus_init->data_handler;
     p_nus->is_notification_enabled  = false;
     
-
     /**@snippet [Adding proprietary Service to S110 SoftDevice] */
-
     // Add custom base UUID.
     err_code = sd_ble_uuid_vs_add(&nus_base_uuid, &p_nus->uuid_type);
     if (err_code != NRF_SUCCESS)
     {
         return err_code;
     }
-
     ble_uuid.type = p_nus->uuid_type;
     ble_uuid.uuid = BLE_UUID_NUS_SERVICE;
 

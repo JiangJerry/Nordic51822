@@ -57,7 +57,7 @@
 /**@brief Types of BSP initialization
  */
 #define BSP_INIT_NONE    0        /**< This define specifies the type of initialization without support for LEDs and buttons @ref bsp_init.*/
-#define BSP_INIT_LED     (1 << 0) /**< This bit enables LEDs during initialization (@ref bsp_init).*/
+#define BSP_INIT_LED     (1 << 6) /**< This bit enables LEDs during initialization (@ref bsp_init).*/
 #define BSP_INIT_BUTTONS (1 << 1) /**< This bit enables buttons during initialization (@ref bsp_init).*/
 #define BSP_INIT_UART    (1 << 2) /**< This bit enables UART during initialization (@ref bsp_init).*/
 

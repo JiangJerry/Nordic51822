@@ -37,10 +37,10 @@ int main(void)
 	uint8_t leds_per_strip = 12;
 	uint8_t error;
 	uint8_t led_to_enable = 10;
-	uint8_t red = 125;
-	uint8_t green = 0;
-	uint8_t blue = 123;
-
+	uint8_t red = 0x20;
+	uint8_t green = 0x10;
+	uint8_t blue = 00;
+    uint8_t i = 0;
 	neopixel_init(&m_strip, dig_pin_num, leds_per_strip);
 	neopixel_clear(&m_strip);
 //	//clear and remove strip
@@ -51,19 +51,24 @@ int main(void)
     LEDS_CONFIGURE(LEDS_MASK);
 	nrf_gpio_cfg_output(LED_0);
 	nrf_gpio_cfg_input(BUTTON_1,NRF_GPIO_PIN_PULLUP);
-    // Toggle LEDs.
-//		nrf_delay_ms(500);
+
     while (true)
     {
-		led_to_enable++;
-		led_to_enable = led_to_enable%12;
-		error = neopixel_set_color_and_show(&m_strip, led_to_enable, red, green, blue);
-		if (error) {
-		//led_to_enable was not within number leds_per_strip
-		}
 		if(nrf_gpio_pin_read(BUTTON_1))
 		{
+            error = neopixel_set_color_and_show(&m_strip, i, red, green, blue);
+            nrf_delay_ms(500);
 			nrf_gpio_pin_set(LED_0);
+            i++;
+            if(i >=12)
+            {
+                for(i=0;i<12;i++)
+                {
+                    error = neopixel_set_color_and_show(&m_strip, i, 0, 0, 0);
+                    nrf_delay_ms(500);
+                }
+                i=0;
+            }
 		}
 		else
 		{

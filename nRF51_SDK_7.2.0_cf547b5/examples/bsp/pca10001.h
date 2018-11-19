@@ -13,7 +13,7 @@
 #define PCA10001_H
 
 #define LED_START      18
-#define LED_0          18
+#define LED_0          6
 #define LED_1          19
 #define LED_STOP       19
 
@@ -48,7 +48,7 @@
 #define TX_PIN_NUMBER  9
 #define CTS_PIN_NUMBER 10
 #define RTS_PIN_NUMBER 8
-#define HWFC           true
+#define HWFC           false
 
 #define SPIS_MISO_PIN  20    // SPI MISO signal. 
 #define SPIS_CSN_PIN   21    // SPI CSN signal. 
